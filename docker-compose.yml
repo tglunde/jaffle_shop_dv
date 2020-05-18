@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+
+  # postgres, see https://hub.docker.com/_/postgres
+  postgres-db:
+    image: postgres:12.3
+#    init: true
+    restart: unless-stopped
+    ports:
+    - 54321:5432
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "dbt_test", "-U", "dbtuser" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    environment:
+      POSTGRES_USER: dbtuser
+      POSTGRES_PASSWORD: dbtpwd
+      POSTGRES_DB: dbt_test
+      POSTGRES_INITDB_ARGS: --data-checksums
+    shm_size: 256M
+
+
+  # https://hub.docker.com/u/fishtownanalytics
+  dbt_test:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "dbt", "test", "--profiles-dir", "/usr/app" ]
+
+  dbt_debug:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "dbt", "debug", "--profiles-dir", "/usr/app" ]
+
+  dbt_seed:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "dbt", "seed", "--profiles-dir", "/usr/app" ]
+
+  dbt_run:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "dbt", "run", "--profiles-dir", "/usr/app" ]
+
+  dbt_rpc:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "dbt", "rpc", "--profiles-dir", "/usr/app" ]
+
+  dbt_bash:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    command: [ "bash" ]
+
+  dbt_doc:
+    image: fishtownanalytics/dbt:0.16.1
+    depends_on:
+      - postgres-db
+    volumes:
+      - .:/usr/app
+    ports:
+    - 54081:8080
+    command: [ "dbt", "docs", "serve", "--profiles-dir", "/usr/app" ]
+
+  pgadmin:
+    image: dpage/pgadmin4:4.20
+    depends_on:
+      - postgres-db
+    volumes:
+      - ./pgadmin-store/var:/var/lib/pgadmin
+      - ./pgadmin-store/servers.json:/servers.json
+    expose:
+      #  no ssl
+      # - "443"
+    - "80"
+    ports:
+      # no ssl
+      # - 54443:443
+    - 54080:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dbtuser
+      PGADMIN_DEFAULT_PASSWORD: dbtpwd
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+
+  superset:
+    image: preset/superset
+    depends_on:
+      - postgres-db  
+    volumes:
+      - .:/usr/app
+    ports:
+    - 8081:8080
+
+  superset_addadmin:
+    image: preset/superset
+    depends_on:
+      - superset
+    command: [ "superset", "fab", "create-admin", "--username", "admin", "--firstname", "Superset", "--lastname", "Admin", "--email", "admin@superset.com", "--password", "admin" ]
+  
+  superset_upgrade:
+    image: preset/superset
+    depends_on:
+      - superset
+    volumes:
+      - .:/usr/app
+    command: [ "superset", "db", "upgrade" ]
+
+  superset_samples:
+    image: preset/superset
+    depends_on:
+      - superset
+    volumes:
+      - .:/usr/app
+    command: [ "superset", "load_examples" ]
+
+  superset_init:
+    image: preset/superset
+    depends_on:
+      - superset
+    volumes:
+      - .:/usr/app
+    command: [ "superset", "init" ]

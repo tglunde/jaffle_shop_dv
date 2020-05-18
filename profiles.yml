@@ -1,0 +1,19 @@
+
+# For more information on how to configure this file, please see:
+# https://docs.getdbt.com/docs/profile
+
+jaffle_shop:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      threads: 1
+      host: postgres-db
+      port: 5432
+      user: dbtuser
+      pass: dbtpwd
+      dbname: dbt_test
+      schema: jsts
+
+config:
+  send_anonymous_usage_stats: False
