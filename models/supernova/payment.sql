@@ -16,6 +16,12 @@ order_payment as (
 
 ),
 
+orders as (
+
+    select order_sk, order_id from {{ ref('order') }}
+
+),
+
 ergebnis as (
 
     select 
